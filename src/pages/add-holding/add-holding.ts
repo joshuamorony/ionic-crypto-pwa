@@ -13,6 +13,7 @@ export class AddHoldingPage {
 
 	private cryptoUnavailable: boolean = false;
 	private checkingValidity: boolean = false;
+	private noConnection: boolean = false;
 	private cryptoCode: string;
 	private displayCurrency: string;
 	private amountHolding;
@@ -21,9 +22,10 @@ export class AddHoldingPage {
 
 	}
 
-	addHolding(): void {
+	addHolding(){
 
 		this.cryptoUnavailable = false;
+		this.noConnection = false;
 		this.checkingValidity = true;
 
 		let holding = {
@@ -45,6 +47,7 @@ export class AddHoldingPage {
 
 		}, (err) => {	
 
+			this.noConnection = true;
 			this.checkingValidity = false;
 
 		});

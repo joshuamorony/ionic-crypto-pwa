@@ -3,6 +3,8 @@ import { Injectable } from '@angular/core';
 import { Storage } from '@ionic/storage';
 import { Observable } from 'rxjs/Observable';
 import { forkJoin } from 'rxjs/observable/forkJoin';
+import { timeoutWith } from 'rxjs/operators';
+import 'rxjs/add/observable/throw';
 
 interface Holding {
 	crypto: string,
@@ -15,6 +17,7 @@ interface Holding {
 export class HoldingsProvider {
 
 	public holdings: Holding[] = [];
+	public pricesUnavailable: boolean = false;
 
 	constructor(private http: HttpClient, private storage: Storage) {
 
@@ -41,7 +44,7 @@ export class HoldingsProvider {
 	}
 	
 	loadHoldings(): void {
-
+		
 		this.storage.get('cryptoHoldings').then(holdings => {
 
 			if(holdings !== null){
@@ -53,11 +56,14 @@ export class HoldingsProvider {
 	}
 
 	verifyHolding(holding): Observable<any> {
-		return this.http.get('https://api.cryptonator.com/api/ticker/' + holding.crypto + '-' + holding.currency);
+		return this.http.get('https://api.cryptonator.com/api/ticker/' + holding.crypto + '-' + holding.currency).pipe(
+			timeoutWith(5000, Observable.throw(new Error('Failed to verify holding.')))
+		);
 	}
 
 	fetchPrices(refresher?): void {
 
+		this.pricesUnavailable = false;
 		let requests = [];
 
 		for(let holding of this.holdings){
@@ -68,7 +74,9 @@ export class HoldingsProvider {
 
 		}
 
-		forkJoin(requests).subscribe(results => {
+		forkJoin(requests).pipe(
+			timeoutWith(5000, Observable.throw(new Error('Failed to fetch prices.')))
+		).subscribe(results => {
 
 			results.forEach((result: any, index) => {
 
@@ -79,10 +87,12 @@ export class HoldingsProvider {
 			if(typeof(refresher) !== 'undefined'){
 				refresher.complete();
 			}
-
+			
 			this.saveHoldings();
 
 		}, err => {
+			
+			this.pricesUnavailable = true;
 
 			if(typeof(refresher) !== 'undefined'){
 				refresher.complete();
